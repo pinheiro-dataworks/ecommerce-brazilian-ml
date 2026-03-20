@@ -1,0 +1,51 @@
+# ── Ambiente Virtual ──────────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+
+# ── Jupyter ───────────────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# ── Dados brutos e datasets ───────────────────────────────────────────────────
+# Gerados pelo feature_engineering.py — não versionar dados pesados
+data/
+dataset/
+
+# ── Modelos treinados ─────────────────────────────────────────────────────────
+# Gerados pelos scripts train_etapa*.py
+# Use MLflow, DVC ou HuggingFace Hub para versionar modelos
+models/
+
+# ── Outputs gerados automaticamente ──────────────────────────────────────────
+# Gerado por create_visualizations.py (não é código-fonte)
+kpis.csv
+
+# map_customers_by_state.html não é usado pelo app.py (gerado mas órfão)
+map_customers_by_state.html
+
+# Os demais HTMLs SÃO dependências do app.py (st.components.v1.html)
+# e devem ser versionados:
+# sales_over_time.html    → mantido
+# top_categories.html     → mantido
+# review_distribution.html → mantido
+
+# ── Python cache ──────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# ── Variáveis de ambiente ─────────────────────────────────────────────────────
+.env
+.env.*
+
+# ── IDEs ──────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.code-workspace
+
+# ── Sistema Operacional ───────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
