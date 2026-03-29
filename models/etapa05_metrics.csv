@@ -1,0 +1,2 @@
+trained_at,train_size,test_size,rmse,mae,mape,r2
+2026-03-28 12:36:58,90120,22530,151.9253,66.6264,86.4548,0.3883

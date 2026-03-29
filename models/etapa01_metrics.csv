@@ -1,0 +1,2 @@
+trained_at,train_size,test_size,accuracy,precision,recall,f1_score,auc_roc
+2026-03-28 12:35:38,77176,19294,0.7676,0.0666,0.2605,0.1061,0.6218

@@ -1,0 +1,2 @@
+trained_at,leakage_fixed,train_size,test_size,churn_accuracy,churn_precision,churn_recall,churn_f1,churn_auc_roc,ltv_rmse,ltv_mae,ltv_mape,ltv_r2
+2026-03-28 12:36:13,True,76876,19220,0.6194,0.8929,0.6244,0.7349,0.6503,86.1779,5.6304,1.2601,0.8803

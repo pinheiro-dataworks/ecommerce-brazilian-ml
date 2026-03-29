@@ -7,20 +7,6 @@ env/
 .ipynb_checkpoints/
 *.ipynb_checkpoints
 
-# ── Dados brutos e datasets ───────────────────────────────────────────────────
-# Gerados pelo feature_engineering.py — não versionar dados pesados
-data/
-dataset/
-
-# ── Modelos treinados ─────────────────────────────────────────────────────────
-# Gerados pelos scripts train_etapa*.py
-# Use MLflow, DVC ou HuggingFace Hub para versionar modelos
-models/
-
-# ── Outputs gerados automaticamente ──────────────────────────────────────────
-# Gerado por create_visualizations.py (não é código-fonte)
-kpis.csv
-
 # map_customers_by_state.html não é usado pelo app.py (gerado mas órfão)
 map_customers_by_state.html
 
