@@ -130,10 +130,13 @@ Projeto completo de ciência de dados aplicado a e-commerce brasileiro (dados Ol
 
 ## 📁 9 - Estrutura do Projeto
 
-PROJECT_01_ECOMMERCE_BR/
+ecommerce-brazilian-ml/
 ├── src/                   # Scripts de treino e processamento
+├── data/                  # Dados brutos do Kaggle
 ├── data/                  # Dados processados (não versionados)
+├── Model/                 # Modelos treinados (não versionados)
 ├── app.py                 # Dashboard Streamlit
+├── kpis.csv               # Gerado automaticamente pelo create_visualizations.py
 ├── requirements.txt       # Dependências
 └── README.md
 
