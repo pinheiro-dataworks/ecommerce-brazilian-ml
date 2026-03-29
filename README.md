@@ -128,7 +128,7 @@ Projeto completo de ciência de dados aplicado a e-commerce brasileiro (dados Ol
 **Review Positiva**: Score 4-5 estrelas
 **Review Negativa**: Score 1-2 estrelas
 
-## 📁 8 - Estrutura do Projeto
+## 📁 9 - Estrutura do Projeto
 
 PROJECT_01_ECOMMERCE_BR/
 ├── src/                   # Scripts de treino e processamento
@@ -138,6 +138,6 @@ PROJECT_01_ECOMMERCE_BR/
 └── README.md
 
 
-## 👨‍💻 9 - Autor
+## 👨‍💻 10 - Autor
 **Renan Pinheiro - Cientista de Dados**  
 Projeto desenvolvido com dados públicos do Olist (Brazilian E-Commerce)
