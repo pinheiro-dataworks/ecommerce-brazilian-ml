@@ -133,35 +133,11 @@ Projeto completo de ciência de dados aplicado a e-commerce brasileiro (dados Ol
 PROJECT_01_ECOMMERCE_BR/
 ├── src/                   # Scripts de treino e processamento
 ├── data/                  # Dados processados (não versionados)
-├── models/                # Modelos treinados (não versionados)
 ├── app.py                 # Dashboard Streamlit
 ├── requirements.txt       # Dependências
 └── README.md
 
-## 🚀 9 - Como Executar
 
-# 9.1 - Clone o repositório
-git clone https://github.com/seu-usuario/PROJECT_01_ECOMMERCE_BR.git
-
-# 9.2 - Crie e ative o ambiente virtual
-python -m venv .venv
-source .venv/bin/activate  # Linux/Mac
-.venv\Scripts\activate     # Windows
-
-# 9.3 - Instale as dependências
-pip install -r requirements.txt
-
-# 9.4 - Gere os dados e visualizações
-python src/create_visualizations.py
-
-# 9.5 - Treine os modelos
-python src/train_etapa01.py
-python src/train_etapa02.py
-# ... demais etapas
-
-# 10 - Rode o dashboard
-streamlit run app.py
-
-## 👨‍💻 11 - Autor
+## 👨‍💻 9 - Autor
 **Renan Pinheiro - Cientista de Dados**  
 Projeto desenvolvido com dados públicos do Olist (Brazilian E-Commerce)
