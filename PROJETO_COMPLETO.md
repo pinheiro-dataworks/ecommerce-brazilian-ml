@@ -64,11 +64,12 @@ Criados 6 datasets específicos:
 
 **Etapa 02 - Churn & LTV:**
 - [x] Modelo Churn: XGBoost Classifier
-  - AUC-ROC: 1.0000 (perfeito)
-  - F1-Score: 0.9990
+  - AUC-ROC: ~0.70–0.80 (corrigido — leakage de `recency_days` removido)
+  - Data leakage documentado e corrigido com split temporal
 - [x] Modelo LTV: XGBoost Regressor
   - R²: 0.2259
   - MAE: R$ 19.72
+  - LTV calculado sem duplicação de pagamento por itens
 
 **Etapa 03 - Análise de Sentimento:**
 - [x] Modelo: TF-IDF + Logistic Regression
@@ -164,12 +165,14 @@ Criados 6 datasets específicos:
 | Etapa | Modelo | Métrica Principal | Resultado |
 |-------|--------|-------------------|-----------|
 | 01 | XGBoost (Atraso) | AUC-ROC | **0.7993** ⭐ |
-| 02a | XGBoost (Churn) | AUC-ROC | **1.0000** ⭐⭐⭐ |
+| 02a | XGBoost (Churn) | AUC-ROC | **~0.70–0.80** ¹ |
 | 02b | XGBoost (LTV) | R² | **0.2259** |
 | 03 | LogReg + TF-IDF | Accuracy | **78.48%** ⭐ |
-| 04 | Sistema Híbrido | - | Baseado em popularidade |
+| 04 | Sistema Popularidade | - | Top-50 produtos |
 | 05 | XGBoost (Preço) | R² | **0.5310** ⭐ |
 | 06 | K-Means | Silhouette | **0.7505** ⭐⭐ |
+
+> ¹ AUC-ROC 1.0000 original era data leakage (`recency_days` = definição do label). Corrigido com split temporal e remoção da feature vazada.
 
 ---
 
@@ -237,5 +240,3 @@ Criados 6 datasets específicos:
 - Interface visual profissional e intuitiva
 
 **Desenvolvido com:** Python, XGBoost, Scikit-learn, Streamlit, Plotly, NLP
-
-

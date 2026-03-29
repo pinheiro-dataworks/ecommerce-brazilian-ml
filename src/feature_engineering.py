@@ -40,6 +40,15 @@ def safe_mode(x):
     return m.iloc[0] if not m.empty else np.nan
 
 
+def flatten_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Achata MultiIndex de colunas gerado por groupby().agg() com listas."""
+    df.columns = [
+        '_'.join(filter(None, col)).strip('_') if isinstance(col, tuple) else col
+        for col in df.columns
+    ]
+    return df
+
+
 def load_csv(path: Path, label: str, **kwargs) -> pd.DataFrame:
     """Carrega CSV com mensagem de erro clara se o arquivo não existir."""
     if not path.exists():
@@ -51,7 +60,10 @@ def load_csv(path: Path, label: str, **kwargs) -> pd.DataFrame:
     print(f"  ✓ {label}: {df.shape}")
     return df
 
+
+# ─────────────────────────────────────────────────────────────────────────────
 # 1. Carregar master_table v2
+# ─────────────────────────────────────────────────────────────────────────────
 print("\n[1/7] Carregando master_table v2...")
 
 date_cols = [
@@ -80,7 +92,9 @@ else:
     print("  ⚠ Nenhuma coluna de review score encontrada.")
 
 
+# ─────────────────────────────────────────────────────────────────────────────
 # ETAPA 01 — PREVISÃO DE ATRASO NA ENTREGA (Classificação Binária)
+# ─────────────────────────────────────────────────────────────────────────────
 print("\n" + "=" * 80)
 print("  [2/7] ETAPA 01 — PREVISÃO DE ATRASO NA ENTREGA")
 print("=" * 80)
@@ -93,41 +107,42 @@ df_delay = master[
 
 print(f"  Registros válidos para análise de atraso: {df_delay.shape}")
 
-# Colunas condicionais (dependem da versão da master)
+# Dicionário de agregação — apenas agregações simples (sem listas),
+# portanto não gera MultiIndex de colunas.
 agg_dict = {
-    'order_purchase_timestamp':    'first',
-    'order_approved_at':           'first',
-    'order_delivered_carrier_date':'first',
-    'order_delivered_customer_date':'first',
-    'order_estimated_delivery_date':'first',
-    'customer_id':                 'first',
-    'customer_state':              'first',
-    'customer_city':               'first',
-    'customer_zip_code_prefix':    'first',
-    'order_item_id':               'count',
-    'price':                       'sum',
-    'freight_value':               'sum',
-    'seller_id':                   safe_mode,
-    'seller_state':                safe_mode,
-    'product_id':                  safe_mode,
+    'order_purchase_timestamp':      'first',
+    'order_approved_at':             'first',
+    'order_delivered_carrier_date':  'first',
+    'order_delivered_customer_date': 'first',
+    'order_estimated_delivery_date': 'first',
+    'customer_id':                   'first',
+    'customer_state':                'first',
+    'customer_city':                 'first',
+    'customer_zip_code_prefix':      'first',
+    'order_item_id':                 'count',
+    'price':                         'sum',
+    'freight_value':                 'sum',
+    'seller_id':                     safe_mode,
+    'seller_state':                  safe_mode,
+    'product_id':                    safe_mode,
     'product_category_name_english': safe_mode,
-    'product_weight_g':            'sum',
-    'product_length_cm':           'mean',
-    'product_height_cm':           'mean',
-    'product_width_cm':            'mean',
-    'product_photos_qty':          'mean',
-    'payment_value_total':         'first',
-    'payment_type_main':           'first',
-    'payment_installments_max':    'first',
+    'product_weight_g':              'sum',
+    'product_length_cm':             'mean',
+    'product_height_cm':             'mean',
+    'product_width_cm':              'mean',
+    'product_photos_qty':            'mean',
+    'payment_value_total':           'first',
+    'payment_type_main':             'first',
+    'payment_installments_max':      'first',
 }
 
-# Adicionar colunas opcionais se existirem
+# Adicionar colunas opcionais de geolocalização se existirem
 for col in ['customer_lat', 'customer_lng', 'seller_lat', 'seller_lng',
             'distance_customer_seller_km']:
     if col in df_delay.columns:
-        agg_dict[col] = 'mean' if 'lat' in col or 'lng' in col or 'km' in col else 'first'
+        agg_dict[col] = 'mean'
 
-# Filtrar apenas colunas existentes
+# Filtrar apenas colunas presentes no dataset
 agg_dict = {k: v for k, v in agg_dict.items() if k in df_delay.columns}
 
 delay_features = df_delay.groupby('order_id').agg(agg_dict).reset_index()
@@ -157,7 +172,8 @@ delay_features['promised_delivery_days'] = (
 ).dt.total_seconds() / (24 * 3600)
 
 # Volume do produto (cm³)
-if all(c in delay_features.columns for c in ['product_length_cm', 'product_height_cm', 'product_width_cm']):
+vol_cols = ['product_length_cm', 'product_height_cm', 'product_width_cm']
+if all(c in delay_features.columns for c in vol_cols):
     delay_features['product_volume_cm3'] = (
         delay_features['product_length_cm'] *
         delay_features['product_height_cm'] *
@@ -180,7 +196,10 @@ print(f"    No prazo:          {n_total - n_delayed:,}  ({(n_total - n_delayed) 
 delay_features.to_csv(OUTPUT_DIR / 'etapa01_delay_dataset.csv', index=False)
 print(f"\n  ✓ etapa01_delay_dataset.csv salvo.")
 
+
+# ─────────────────────────────────────────────────────────────────────────────
 # ETAPA 02 — CHURN E LTV (Classificação + Regressão)
+# ─────────────────────────────────────────────────────────────────────────────
 print("\n" + "=" * 80)
 print("  [3/7] ETAPA 02 — CHURN E LTV")
 print("=" * 80)
@@ -188,48 +207,69 @@ print("=" * 80)
 ref_date = master['order_purchase_timestamp'].max()
 print(f"  Data de referência: {ref_date.date()}")
 
-# Usar pedidos únicos para evitar duplicidade de payment_value_total
+# ── Correção de granularidade ─────────────────────────────────────────────────
+# master tem 1 linha por ITEM. payment_value_total é nível de PEDIDO.
+# Agregar diretamente sobre master duplicaria o pagamento N vezes (N = itens).
+# Solução: deduplicar para nível de pedido antes de somar pagamentos,
+# e calcular produtos únicos separadamente (requer granularidade de item).
 master_orders_unique = master.drop_duplicates('order_id')
 
+# Contagem de produtos únicos por cliente — granularidade de item (correta)
+product_nunique = (
+    master
+    .groupby('customer_unique_id')['product_id']
+    .nunique()
+    .reset_index(name='num_unique_products')
+)
+
+# Colunas opcionais para o agg de nível de pedido
+churn_agg_optional = {}
+if 'product_category_name_english' in master_orders_unique.columns:
+    churn_agg_optional['product_category_name_english'] = safe_mode
+if review_score_col and review_score_col in master_orders_unique.columns:
+    churn_agg_optional[review_score_col] = 'mean'
+
 churn_agg = {
-    'order_id':                    'nunique',
-    'order_purchase_timestamp':    ['min', 'max'],
-    'payment_value_total':         'sum',
-    'customer_state':              'first',
-    'customer_city':               'first',
-    'customer_zip_code_prefix':    'first',
-    'product_id':                  'nunique',
+    'order_id':                 'nunique',
+    'order_purchase_timestamp': ['min', 'max'],   # lista → gera MultiIndex
+    'payment_value_total':      'sum',
+    'customer_state':           'first',
+    'customer_city':            'first',
+    'customer_zip_code_prefix': 'first',
+    **churn_agg_optional,
 }
+churn_agg = {k: v for k, v in churn_agg.items() if k in master_orders_unique.columns}
 
-# Adicionar category e review_score se existirem
-if 'product_category_name_english' in master.columns:
-    churn_agg['product_category_name_english'] = safe_mode
-if review_score_col:
-    churn_agg[review_score_col] = 'mean'
+churn_features = (
+    master_orders_unique
+    .groupby('customer_unique_id')
+    .agg(churn_agg)
+    .reset_index()
+)
 
-churn_agg = {k: v for k, v in churn_agg.items() if k in master.columns}
+# ── ACHATAR MultiIndex ANTES de qualquer merge ────────────────────────────────
+# A lista ['min','max'] no agg gera colunas como tuplas:
+#   ('order_purchase_timestamp', 'min'), ('order_purchase_timestamp', 'max')
+# O pandas.merge() não aceita DataFrames com MultiIndex de colunas de lados
+# diferentes (2 níveis vs 1 nível) e lança MergeError.
+# flatten_columns() converte as tuplas em strings antes do merge.
+churn_features = flatten_columns(churn_features)
 
-churn_features = master.groupby('customer_unique_id').agg(churn_agg).reset_index()
-
-# Achatar MultiIndex de colunas
-churn_features.columns = [
-    '_'.join(filter(None, col)).strip('_') if isinstance(col, tuple) else col
-    for col in churn_features.columns
-]
+# Merge com contagem de produtos únicos (índice simples — seguro agora)
+churn_features = churn_features.merge(product_nunique, on='customer_unique_id', how='left')
 
 # Renomear colunas para nomes limpos
 rename_map = {
-    'customer_unique_id':                    'customer_unique_id',
-    'order_id_nunique':                      'num_orders',
-    'order_purchase_timestamp_min':          'first_purchase_date',
-    'order_purchase_timestamp_max':          'last_purchase_date',
-    'payment_value_total_sum':               'total_spent',
-    'customer_state_first':                  'customer_state',
-    'customer_city_first':                   'customer_city',
-    'customer_zip_code_prefix_first':        'customer_zip_code_prefix',
-    'product_id_nunique':                    'num_unique_products',
-    'product_category_name_english_<lambda>':'favorite_category',
+    'customer_unique_id':                     'customer_unique_id',
+    'order_id_nunique':                       'num_orders',
+    'order_purchase_timestamp_min':           'first_purchase_date',
+    'order_purchase_timestamp_max':           'last_purchase_date',
+    'payment_value_total_sum':                'total_spent',
+    'customer_state_first':                   'customer_state',
+    'customer_city_first':                    'customer_city',
+    'customer_zip_code_prefix_first':         'customer_zip_code_prefix',
     'product_category_name_english_safe_mode':'favorite_category',
+    'product_category_name_english_<lambda>': 'favorite_category',
 }
 if review_score_col:
     rename_map[f'{review_score_col}_mean'] = 'avg_review_score'
@@ -278,7 +318,9 @@ churn_features.to_csv(OUTPUT_DIR / 'etapa02_churn_ltv_dataset.csv', index=False)
 print(f"\n  ✓ etapa02_churn_ltv_dataset.csv salvo.")
 
 
+# ─────────────────────────────────────────────────────────────────────────────
 # ETAPA 03 — ANÁLISE DE SENTIMENTO (NLP)
+# ─────────────────────────────────────────────────────────────────────────────
 print("\n" + "=" * 80)
 print("  [4/7] ETAPA 03 — ANÁLISE DE SENTIMENTO")
 print("=" * 80)
@@ -294,7 +336,7 @@ sentiment_df['sentiment'] = sentiment_df['review_score'].apply(
     lambda x: 'negative' if x <= 2 else ('neutral' if x == 3 else 'positive')
 )
 
-dist = sentiment_df['sentiment'].value_counts()
+dist  = sentiment_df['sentiment'].value_counts()
 total = len(sentiment_df)
 print(f"\n  Sentiment Distribution:")
 for label, count in dist.items():
@@ -310,7 +352,10 @@ sentiment_df[nlp_cols_existing].to_csv(
 )
 print(f"\n  ✓ etapa03_sentiment_dataset.csv salvo.")
 
+
+# ─────────────────────────────────────────────────────────────────────────────
 # ETAPA 04 — SISTEMA DE RECOMENDAÇÃO
+# ─────────────────────────────────────────────────────────────────────────────
 print("\n" + "=" * 80)
 print("  [5/7] ETAPA 04 — SISTEMA DE RECOMENDAÇÃO")
 print("=" * 80)
@@ -330,7 +375,10 @@ print(f"  Produtos únicos:    {interactions['product_id'].nunique():,}")
 interactions.to_csv(OUTPUT_DIR / 'etapa04_recommendation_dataset.csv', index=False)
 print(f"\n  ✓ etapa04_recommendation_dataset.csv salvo.")
 
-# ETAPA 05 — PRECIFICAÇÃO INTELIGENTE (Elasticidade)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ETAPA 05 — PRECIFICAÇÃO INTELIGENTE
+# ─────────────────────────────────────────────────────────────────────────────
 print("\n" + "=" * 80)
 print("  [6/7] ETAPA 05 — PRECIFICAÇÃO INTELIGENTE")
 print("=" * 80)
@@ -351,14 +399,15 @@ pricing_df = (
 )
 
 # Volume do produto (cm³)
-if all(c in pricing_df.columns for c in ['product_length_cm', 'product_height_cm', 'product_width_cm']):
+vol_cols = ['product_length_cm', 'product_height_cm', 'product_width_cm']
+if all(c in pricing_df.columns for c in vol_cols):
     pricing_df['product_volume_cm3'] = (
         pricing_df['product_length_cm'] *
         pricing_df['product_height_cm'] *
         pricing_df['product_width_cm']
     )
 
-# Features temporais — coluna já é datetime, sem pd.to_datetime() redundante
+# Features temporais
 ts = pricing_df['order_purchase_timestamp']
 pricing_df['purchase_year']    = ts.dt.year
 pricing_df['purchase_month']   = ts.dt.month
@@ -389,18 +438,20 @@ pricing_df.to_csv(OUTPUT_DIR / 'etapa05_pricing_dataset.csv', index=False)
 print(f"\n  ✓ etapa05_pricing_dataset.csv salvo.")
 
 
+# ─────────────────────────────────────────────────────────────────────────────
 # ETAPA 06 — CLUSTERING DE SELLERS
+# ─────────────────────────────────────────────────────────────────────────────
 print("\n" + "=" * 80)
 print("  [7/7] ETAPA 06 — CLUSTERING DE SELLERS")
 print("=" * 80)
 
 seller_agg = {
-    'order_id':    'nunique',
-    'price':       ['sum', 'mean'],
-    'freight_value': 'mean',
-    'product_id':  'nunique',
+    'order_id':       'nunique',
+    'price':          ['sum', 'mean'],   # lista → gera MultiIndex → achatar depois
+    'freight_value':  'mean',
+    'product_id':     'nunique',
     'customer_state': 'nunique',
-    'customer_id': 'nunique',
+    'customer_id':    'nunique',
 }
 
 # Colunas opcionais
@@ -410,7 +461,6 @@ if review_score_col:
     seller_agg[review_score_col] = 'mean'
 if 'seller_state' in master.columns:
     seller_agg['seller_state'] = 'first'
-# Usar mean para coordenadas (evita NaN do 'first')
 for col in ['seller_lat', 'seller_lng']:
     if col in master.columns:
         seller_agg[col] = 'mean'
@@ -420,24 +470,21 @@ seller_agg = {k: v for k, v in seller_agg.items() if k in master.columns}
 seller_features = master.groupby('seller_id').agg(seller_agg).reset_index()
 
 # Achatar MultiIndex de colunas
-seller_features.columns = [
-    '_'.join(filter(None, col)).strip('_') if isinstance(col, tuple) else col
-    for col in seller_features.columns
-]
+seller_features = flatten_columns(seller_features)
 
 # Renomear para nomes limpos
 seller_rename = {
-    'order_id_nunique':                       'num_orders',
-    'price_sum':                              'total_revenue',
-    'price_mean':                             'avg_order_value',
-    'freight_value_mean':                     'avg_freight',
-    'product_id_nunique':                     'num_unique_products',
-    'product_category_name_english_safe_mode':'main_category',
-    'customer_state_nunique':                 'num_states_served',
-    'customer_id_nunique':                    'num_customers',
-    'seller_state_first':                     'seller_state',
-    'seller_lat_mean':                        'seller_lat',
-    'seller_lng_mean':                        'seller_lng',
+    'order_id_nunique':                        'num_orders',
+    'price_sum':                               'total_revenue',
+    'price_mean':                              'avg_order_value',
+    'freight_value_mean':                      'avg_freight',
+    'product_id_nunique':                      'num_unique_products',
+    'product_category_name_english_safe_mode': 'main_category',
+    'customer_state_nunique':                  'num_states_served',
+    'customer_id_nunique':                     'num_customers',
+    'seller_state_first':                      'seller_state',
+    'seller_lat_mean':                         'seller_lat',
+    'seller_lng_mean':                         'seller_lng',
 }
 if review_score_col:
     seller_rename[f'{review_score_col}_mean'] = 'avg_review_score'
@@ -446,7 +493,7 @@ seller_features = seller_features.rename(columns={
     k: v for k, v in seller_rename.items() if k in seller_features.columns
 })
 
-# Taxa de atraso por seller (join com delay_features)
+# Taxa de atraso por seller
 if 'seller_id' in delay_features.columns:
     seller_delay = (
         delay_features.groupby('seller_id')['is_delayed']

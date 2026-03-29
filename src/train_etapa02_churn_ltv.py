@@ -247,7 +247,6 @@ model_churn = xgb.XGBClassifier(
     colsample_bytree=0.8,
     random_state=42,
     eval_metric='auc',
-    use_label_encoder=False
 )
 
 model_churn.fit(

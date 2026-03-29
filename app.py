@@ -12,6 +12,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import joblib
 from pathlib import Path
+from typing import Optional
 import re
 import warnings
 
@@ -19,7 +20,7 @@ warnings.filterwarnings('ignore')
 
 # Configuração da página
 st.set_page_config(
-    page_title="E-Commerce Analytics & ML",
+    page_title="Brazilian E-Commerce Public Dataset by Olist",
     page_icon="🛒",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -55,7 +56,7 @@ st.markdown("""
 
 # Utilitários com cache
 @st.cache_data(show_spinner=False)
-def load_csv_cached(path_str: str, **kwargs) -> pd.DataFrame | None:
+def load_csv_cached(path_str: str, **kwargs) -> Optional[pd.DataFrame]:
     """Carrega CSV com cache. Retorna None se o arquivo não existir."""
     path = Path(path_str)
     if not path.exists():
@@ -72,7 +73,7 @@ def load_model_cached(path_str: str):
     return joblib.load(path)
 
 
-def load_metrics(path: Path) -> pd.DataFrame | None:
+def load_metrics(path: Path) -> Optional[pd.DataFrame]:
     """Carrega CSV de métricas com mensagem de erro amigável."""
     df = load_csv_cached(str(path))
     if df is None:
@@ -80,7 +81,7 @@ def load_metrics(path: Path) -> pd.DataFrame | None:
     return df
 
 
-def read_html_file(path: Path) -> str | None:
+def read_html_file(path: Path) -> Optional[str]:
     """Lê arquivo HTML. Retorna None se não existir."""
     if not path.exists():
         return None
@@ -89,7 +90,7 @@ def read_html_file(path: Path) -> str | None:
 
 
 # SIDEBAR — NAVEGAÇÃO
-st.sidebar.title("🛒 E-Commerce ML Dashboard")
+st.sidebar.title("🛒 Pinheiro DataWorks - ML Dashboard")
 st.sidebar.markdown("---")
 
 page = st.sidebar.radio(
@@ -117,7 +118,7 @@ st.sidebar.info("""
 # PÁGINA HOME — OVERVIEW
 if page == "🏠 Home - Overview":
     st.markdown(
-        '<div class="main-header">📊 E-Commerce Analytics & Machine Learning</div>',
+        '<div class="main-header">📊 Brazilian E-Commerce Public Dataset by Olist</div>',
         unsafe_allow_html=True
     )
     st.markdown("### Plataforma Completa de Análise Preditiva para E-Commerce")
@@ -237,16 +238,16 @@ elif page == "📦 Etapa 01 - Previsão de Atraso":
         feat_cols_01 = load_model_cached(str(MODEL_DIR / 'etapa01_feature_cols.pkl'))
 
         if model_01 is not None and feat_cols_01 is not None:
-            # Montar vetor de features na mesma ordem do treino
+            # Montar vetor de features com os MESMOS nomes usados no treino
             input_data = {
-                'distance_km':              distance,
-                'same_state':               1 if same_state == "Sim" else 0,
-                'order_items_qty':          num_items,
-                'payment_value':            order_value,
-                'freight_value':            freight,
-                'estimated_delivery_days':  promised_days,
-                'product_weight_g':         product_weight,
-                'purchase_quarter':         quarter,
+                'distance_customer_seller_km': distance,    # era distance_km
+                'same_state':                  1 if same_state == "Sim" else 0,
+                'order_item_id':               num_items,  # era order_items_qty
+                'payment_value_total':         order_value, # era payment_value
+                'freight_value':               freight,
+                'promised_delivery_days':      promised_days, # era estimated_delivery_days
+                'product_weight_g':            product_weight,
+                'purchase_quarter':            quarter,
             }
             X_input = pd.DataFrame([{c: input_data.get(c, 0) for c in feat_cols_01}])
             prob_delay = float(model_01.predict_proba(X_input)[0][1])
@@ -300,40 +301,58 @@ elif page == "👥 Etapa 02 - Churn & LTV":
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        num_orders   = st.number_input("Número de Pedidos", 1, 50, 3)
-        recency_days = st.slider("Dias Desde Última Compra", 0, 365, 60)
+        num_orders        = st.number_input("Número de Pedidos", 1, 50, 3)
+        num_products      = st.number_input("Produtos Únicos Comprados", 1, 50, 5)
     with col2:
-        total_spent  = st.number_input("Valor Total Gasto (R$)", 0.0, 10000.0, 300.0)
-        avg_review   = st.slider("Review Médio", 1.0, 5.0, 4.0, 0.1)
+        avg_order_value   = st.number_input("Ticket Médio por Pedido (R$)", 10.0, 5000.0, 100.0)
+        avg_review        = st.slider("Review Médio", 1.0, 5.0, 4.0, 0.1)
     with col3:
-        num_products = st.number_input("Produtos Únicos Comprados", 1, 50, 5)
+        lifetime_days     = st.slider("Dias como Cliente", 1, 1000, 180)
+
+    # Derivar frequência (pedidos/dia) a partir dos inputs
+    frequency_per_day = num_orders / max(lifetime_days, 1)
 
     if st.button("📊 Analisar Cliente", type="primary"):
-        model_churn   = load_model_cached(str(MODEL_DIR / 'etapa02_churn_model.pkl'))
-        model_ltv     = load_model_cached(str(MODEL_DIR / 'etapa02_ltv_model.pkl'))
-        feat_cols_02  = load_model_cached(str(MODEL_DIR / 'etapa02_feature_cols.pkl'))
+        model_churn      = load_model_cached(str(MODEL_DIR / 'etapa02_churn_model.pkl'))
+        model_ltv        = load_model_cached(str(MODEL_DIR / 'etapa02_ltv_model.pkl'))
+        feat_cols_churn  = load_model_cached(str(MODEL_DIR / 'etapa02_feature_cols.pkl'))
+        feat_cols_ltv    = load_model_cached(str(MODEL_DIR / 'etapa02_ltv_feature_cols.pkl'))
 
-        input_data_02 = {
-            'num_orders':           num_orders,
-            'recency_days':         recency_days,
-            'total_payment_value':  total_spent,
-            'review_score':         avg_review,
-            'num_unique_products':  num_products,
-            'avg_ticket':           total_spent / max(num_orders, 1),
+        # Mapa de features alinhado com CHURN_FEATURE_COLS do treino
+        input_churn = {
+            'num_orders':              num_orders,
+            'num_unique_products':     num_products,
+            'frequency_orders_per_day':frequency_per_day,
+            'avg_order_value':         avg_order_value,
+            'avg_review_score':        avg_review,
+            'customer_state':          0,   # desconhecido → encoding neutro
+            'favorite_category':       0,   # desconhecido → encoding neutro
         }
 
-        if model_churn is not None and feat_cols_02 is not None:
-            X_02       = pd.DataFrame([{c: input_data_02.get(c, 0) for c in feat_cols_02}])
-            churn_prob = float(model_churn.predict_proba(X_02)[0][1])
+        # Mapa de features alinhado com LTV_FEATURE_COLS do treino
+        input_ltv = {
+            'num_orders':              num_orders,
+            'num_unique_products':     num_products,
+            'frequency_orders_per_day':frequency_per_day,
+            'avg_order_value':         avg_order_value,
+            'avg_review_score':        avg_review,
+            'customer_lifetime_days':  lifetime_days,
+            'customer_state':          0,
+            'favorite_category':       0,
+        }
+
+        if model_churn is not None and feat_cols_churn is not None:
+            X_churn    = pd.DataFrame([{c: input_churn.get(c, 0) for c in feat_cols_churn}])
+            churn_prob = float(model_churn.predict_proba(X_churn)[0][1])
         else:
             st.warning("⚠️ Modelo de churn não encontrado. Exibindo estimativa.")
-            churn_prob = min(recency_days / 365, 0.95)
+            churn_prob = min((365 - lifetime_days) / 365, 0.95) if lifetime_days < 365 else 0.1
 
-        if model_ltv is not None and feat_cols_02 is not None:
-            X_02_ltv = pd.DataFrame([{c: input_data_02.get(c, 0) for c in feat_cols_02}])
-            ltv_pred = float(model_ltv.predict(X_02_ltv)[0])
+        if model_ltv is not None and feat_cols_ltv is not None:
+            X_ltv_df = pd.DataFrame([{c: input_ltv.get(c, 0) for c in feat_cols_ltv}])
+            ltv_pred  = float(model_ltv.predict(X_ltv_df)[0])
         else:
-            ltv_pred = total_spent * 1.25
+            ltv_pred = avg_order_value * num_orders * 1.25
 
         col1, col2 = st.columns(2)
         with col1:
@@ -353,7 +372,7 @@ elif page == "👥 Etapa 02 - Churn & LTV":
         with col2:
             st.markdown("### 💰 Lifetime Value (LTV)")
             st.metric("LTV Predito",  f"R$ {ltv_pred:.2f}")
-            st.metric("Ticket Médio", f"R$ {total_spent / max(num_orders, 1):.2f}")
+            st.metric("Ticket Médio", f"R$ {avg_order_value:.2f}")
 
             # Segmentação dinâmica por LTV
             if ltv_pred > 500:
@@ -734,4 +753,4 @@ elif page == "🏪 Etapa 06 - Clustering de Sellers":
                 st.warning("Digite um ID de seller para análise.")
 
 st.markdown("---")
-st.markdown("**© 2026 E-Commerce ML Analytics Dashboard | Desenvolvido por Pinheiro Dataworks**")
+st.markdown("**© 2026 E-Commerce ML Analytics Dashboard | Desenvolvido por Renan Pinheiro**")

@@ -34,11 +34,11 @@ print("=" * 80)
 
 print("\n[1/9] Carregando master_table...")
 
-master_path = DATA_DIR / 'master_table.csv'
+master_path = DATA_DIR / 'master_table_v2.csv'
 if not master_path.exists():
     raise FileNotFoundError(
         f"Arquivo não encontrado: {master_path}\n"
-        "Execute data_ingestion.py antes deste script."
+        "Execute data_ingestion_v2.py antes deste script."
     )
 
 master = pd.read_csv(
@@ -58,7 +58,8 @@ print(f"  ✓ Master table carregada: {master.shape} | {len(master.columns)} col
 print("\n[2/9] Análise Descritiva Geral...")
 
 print("\n  Estatísticas numéricas (colunas principais):")
-num_cols = ['price', 'freight_value', 'payment_value_total', 'review_score']
+num_cols = ['price', 'freight_value', 'payment_value_total', 'review_score',
+            'distance_customer_seller_km']
 num_cols_existing = [c for c in num_cols if c in master.columns]
 print(master[num_cols_existing].describe().round(2).to_string())
 

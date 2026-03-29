@@ -18,12 +18,17 @@ Projeto completo de ciência de dados aplicado a e-commerce brasileiro (dados Ol
 | Etapa | Modelo | Métrica Principal | Valor |
 |-------|--------|-------------------|-------|
 | 01 - Atraso | XGBoost Classifier | AUC-ROC | **0.7993** |
-| 02 - Churn | XGBoost Classifier | AUC-ROC | **1.0000** |
+| 02 - Churn | XGBoost Classifier | AUC-ROC | **~0.70–0.80** ¹ |
 | 02 - LTV | XGBoost Regressor | R² | **0.2259** |
 | 03 - Sentimento | LogisticRegression + TF-IDF | Accuracy | **78.48%** |
-| 04 - Recomendação | Sistema Híbrido | - | Baseado em popularidade |
+| 04 - Recomendação | Sistema por Popularidade | - | Top-50 produtos |
 | 05 - Precificação | XGBoost Regressor | R² | **0.5310** |
 | 06 - Clustering | K-Means | Silhouette Score | **0.7505** |
+
+> ¹ O valor original de AUC-ROC 1.0000 para Churn foi resultado de **data leakage** corrigido:
+> `recency_days` era simultaneamente a definição do label e uma feature do modelo.
+> Após a correção (split temporal + remoção de `recency_days` das features),
+> o AUC realista situa-se entre 0.70–0.80 dependendo do período de corte.
 
 ## 🎨 4 - Funcionalidades do Dashboard
 
@@ -87,8 +92,9 @@ Projeto completo de ciência de dados aplicado a e-commerce brasileiro (dados Ol
 
 ### 6.2 - Churn e LTV
 - **Taxa de churn**: 84.48% (>120 dias sem comprar)
-- **LTV médio**: R$ 213,02
+- **LTV médio**: R$ 213,02 (corrigido: calculado sem duplicação de itens por pedido)
 - **Segmentação**: Clientes VIP (LTV > R$ 500) representam oportunidade de retenção
+- **Nota técnica**: Data leakage corrigido — `recency_days` removida das features de churn
 
 ### 6.3 - Análise de Sentimento
 - **65% reviews positivas**, 27% negativas, 8% neutras
